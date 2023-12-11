@@ -120,18 +120,12 @@ export function generateStatic(operation: IHttpOperation, source: JSONSchema): E
 export function generateExplicit(operation: IHttpOperation, explicitConfig: string, explicitResponseId: string | undefined, source: JSONSchema): Either<Error, unknown> {
   const explicitConfigObj = JSON.parse(fs.readFileSync(explicitConfig, 'utf8'));
 
-  // console.log({ explicitConfigObj });
-  // console.log({ explicitResponseId });
-  const explicitResponse = (explicitResponseId && explicitResponseId in explicitConfigObj) ? explicitConfigObj[explicitResponseId] : undefined;
+  const explicitResponse = explicitConfigObj.find(({ id }: { id: string }) => id === explicitResponseId);
 
   return pipe(
     tryCatch(() => {
-      if (source.type === 'object' && explicitResponse && 'response' in explicitResponse) {
-        const y = explicitResponse.response;
-        console.log({ y: JSON.stringify(y, null, 2) });
-        const x = sampler.sample(source, { ticks: 2500 }, operation);
-        console.log({ x: JSON.stringify(x, null, 2) });
-        return y;
+      if (source.type === 'object' && explicitResponse && 'data' in explicitResponse) {
+        return explicitResponse.data.response;
       } else {
         return sampler.sample(source, { ticks: 2500 }, operation);
       }
