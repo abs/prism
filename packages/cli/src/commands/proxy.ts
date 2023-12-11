@@ -42,6 +42,7 @@ const proxyCommand: CommandModule = {
     const p: CreateProxyServerOptions = pick(
       parsedArgs as unknown as CreateProxyServerOptions,
       'dynamic',
+      'explicit',
       'cors',
       'host',
       'port',

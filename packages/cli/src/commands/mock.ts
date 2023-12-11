@@ -20,6 +20,12 @@ const mockCommand: CommandModule = {
           boolean: true,
           default: false,
         },
+        explicit: {
+          alias: 'e',
+          description: 'Explicit response specification file or URL',
+          type: 'string',
+          default: undefined,
+        },
         'json-schema-faker-fillProperties': {
           description: 'Generate additional properties when using dynamic generation.',
           default: undefined,
@@ -37,13 +43,15 @@ const mockCommand: CommandModule = {
       }),
   handler: async parsedArgs => {
     parsedArgs.jsonSchemaFakerFillProperties = parsedArgs['json-schema-faker-fillProperties'];
-    const { multiprocess, dynamic, port, host, cors, document, errors, verboseLevel, ignoreExamples, jsonSchemaFakerFillProperties } =
+
+    const { multiprocess, dynamic, explicit, port, host, cors, document, errors, verboseLevel, ignoreExamples, jsonSchemaFakerFillProperties } =
       parsedArgs as unknown as CreateMockServerOptions;
 
     const createPrism = multiprocess ? createMultiProcessPrism : createSingleProcessPrism;
     const options = {
       cors,
       dynamic,
+      explicit,
       port,
       host,
       document,

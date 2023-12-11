@@ -13,6 +13,7 @@ export interface IHttpOperationConfig {
   code?: number;
   exampleKey?: string;
   dynamic: boolean;
+  explicit?: string;
   ignoreExamples?: boolean;
 }
 

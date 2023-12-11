@@ -33,7 +33,7 @@ import {
 } from '../types';
 import withLogger from '../withLogger';
 import { UNAUTHORIZED, UNPROCESSABLE_ENTITY, INVALID_CONTENT_TYPE, SCHEMA_TOO_COMPLEX } from './errors';
-import { generate, generateStatic, SchemaTooComplexGeneratorError } from './generator/JSONSchema';
+import { generate, generateStatic, generateExplicit, SchemaTooComplexGeneratorError } from './generator/JSONSchema';
 import helpers from './negotiator/NegotiatorHelpers';
 import { IHttpNegotiationResult } from './negotiator/types';
 import { runCallback } from './callback/callbacks';
@@ -57,9 +57,22 @@ const mock: IPrismComponents<IHttpOperation, IHttpRequest, IHttpResponse, IHttpM
   input,
   config,
 }) => {
+  /*
   const payloadGenerator: PayloadGenerator = config.dynamic
     ? partial(generate, resource, resource['__bundle__'])
     : partial(generateStatic, resource);
+    */
+
+  const payloadGenerator: PayloadGenerator = (() => {
+    if (config.dynamic) {
+      return partial(generate, resource, resource['__bundle__']);
+    } else if (config.explicit) {
+      const explicitResponseId = input?.data?.headers && input?.data?.headers['explicit-response-id'];
+      return partial(generateExplicit, resource, config.explicit, explicitResponseId);
+    } else {
+      return partial(generateStatic, resource);
+    }
+  })();
 
   return pipe(
     withLogger(logger => {
@@ -151,7 +164,7 @@ function parseBodyIfUrlEncoded(request: IHttpRequest, resource: IHttpOperation) 
     O.chainNullableK(body => body.contents),
     O.getOrElse(() => [] as IMediaTypeContent[])
   );
-  
+
   const requestBody = request.body as string;
   const encodedUriParams = pipe(
     mediaType === "multipart/form-data" ? parseMultipartFormDataParams(requestBody, multipartBoundary) : splitUriParams(requestBody),
@@ -316,36 +329,36 @@ const assembleResponse =
     payloadGenerator: PayloadGenerator,
     ignoreExamples: boolean
   ): R.Reader<Logger, E.Either<Error, IHttpResponse>> =>
-  logger =>
-    pipe(
-      E.Do,
-      E.bind('negotiationResult', () => result),
-      E.bind('mockedData', ({ negotiationResult }) =>
-        eitherSequence(
-          computeBody(negotiationResult, payloadGenerator, ignoreExamples),
-          computeMockedHeaders(negotiationResult.headers || [], payloadGenerator)
-        )
-      ),
-      E.map(({ mockedData: [mockedBody, mockedHeaders], negotiationResult }) => {
-        const response: IHttpResponse = {
-          statusCode: parseInt(negotiationResult.code),
-          headers: {
-            ...mockedHeaders,
-            ...(negotiationResult.mediaType && {
-              'Content-type': negotiationResult.mediaType,
-            }),
-            ...(negotiationResult.deprecated && {
-              deprecation: 'true',
-            }),
-          },
-          body: mockedBody,
-        };
+    logger =>
+      pipe(
+        E.Do,
+        E.bind('negotiationResult', () => result),
+        E.bind('mockedData', ({ negotiationResult }) =>
+          eitherSequence(
+            computeBody(negotiationResult, payloadGenerator, ignoreExamples),
+            computeMockedHeaders(negotiationResult.headers || [], payloadGenerator)
+          )
+        ),
+        E.map(({ mockedData: [mockedBody, mockedHeaders], negotiationResult }) => {
+          const response: IHttpResponse = {
+            statusCode: parseInt(negotiationResult.code),
+            headers: {
+              ...mockedHeaders,
+              ...(negotiationResult.mediaType && {
+                'Content-type': negotiationResult.mediaType,
+              }),
+              ...(negotiationResult.deprecated && {
+                deprecation: 'true',
+              }),
+            },
+            body: mockedBody,
+          };
 
-        logger.success(`Responding with the requested status code ${response.statusCode}`);
+          logger.success(`Responding with the requested status code ${response.statusCode}`);
 
-        return response;
-      })
-    );
+          return response;
+        })
+      );
 
 function isINodeExample(nodeExample: ContentExample | undefined): nodeExample is INodeExample {
   return !!nodeExample && 'value' in nodeExample;

@@ -1,14 +1,17 @@
 import faker from '@faker-js/faker';
 import { cloneDeep } from 'lodash';
 import { JSONSchema } from '../../types';
+import * as fs from 'fs';
 
 import { JSONSchemaFaker } from 'json-schema-faker';
 import * as sampler from '@stoplight/json-schema-sampler';
+import * as $RefParser from '@stoplight/json-schema-ref-parser';
 import { Either, toError, tryCatch } from 'fp-ts/Either';
 import { IHttpContent, IHttpOperation, IHttpParam } from '@stoplight/types';
 import { pipe } from 'fp-ts/function';
 import * as E from 'fp-ts/lib/Either';
 import { stripWriteOnlyProperties } from '../../utils/filterRequiredProperties';
+import exp from 'constants';
 
 // necessary as workaround broken types in json-schema-faker
 // @ts-ignore
@@ -114,13 +117,40 @@ export function generateStatic(operation: IHttpOperation, source: JSONSchema): E
   );
 }
 
-export class GeneratorError extends Error {}
+export function generateExplicit(operation: IHttpOperation, explicitConfig: string, explicitResponseId: string | undefined, source: JSONSchema): Either<Error, unknown> {
+  const explicitConfigObj = JSON.parse(fs.readFileSync(explicitConfig, 'utf8'));
+
+  // console.log({ explicitConfigObj });
+  // console.log({ explicitResponseId });
+  const explicitResponse = (explicitResponseId && explicitResponseId in explicitConfigObj) ? explicitConfigObj[explicitResponseId] : undefined;
+
+  return pipe(
+    tryCatch(() => {
+      if (source.type === 'object' && explicitResponse && 'response' in explicitResponse) {
+        const y = explicitResponse.response;
+        console.log({ y: JSON.stringify(y, null, 2) });
+        const x = sampler.sample(source, { ticks: 2500 }, operation);
+        console.log({ x: JSON.stringify(x, null, 2) });
+        return y;
+      } else {
+        return sampler.sample(source, { ticks: 2500 }, operation);
+      }
+    }, toError),
+    E.mapLeft(err => {
+      if (err instanceof sampler.SchemaSizeExceededError) {
+        return new SchemaTooComplexGeneratorError(operation, err);
+      }
+      return err;
+    })
+  );
+}
+
+export class GeneratorError extends Error { }
 
 export class SchemaTooComplexGeneratorError extends GeneratorError {
   constructor(operation: IHttpOperation, public readonly cause: Error) {
     super(
-      `The operation ${operation.method.toUpperCase()} ${
-        operation.path
+      `The operation ${operation.method.toUpperCase()} ${operation.path
       } references a JSON Schema that is too complex to generate.`
     );
   }

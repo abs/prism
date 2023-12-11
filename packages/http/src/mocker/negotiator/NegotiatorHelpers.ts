@@ -165,10 +165,11 @@ const helpers = {
                   if (response.contents?.length && response.contents?.length > 0) {
                     return pipe(
                       createEmptyResponse(response.code, headers, mediaTypes),
-                        E.fromOption<Error>(() => {
-                              return ProblemJsonError.fromTemplate(NOT_ACCEPTABLE, `Unable to find content for ${mediaTypes}`);
-                        })
-                  )}
+                      E.fromOption<Error>(() => {
+                        return ProblemJsonError.fromTemplate(NOT_ACCEPTABLE, `Unable to find content for ${mediaTypes}`);
+                      })
+                    )
+                  }
 
                   // though accept header may have a request media type, the spec does not define a response body for the endpoint, so we essentially ignore the accept header (no error)
                   return E.right<Error, IHttpNegotiationResult>({
