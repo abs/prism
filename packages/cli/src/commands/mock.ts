@@ -1,3 +1,4 @@
+import { resolve } from 'path';
 import { CommandModule } from 'yargs';
 import { CreateMockServerOptions, createMultiProcessPrism, createSingleProcessPrism } from '../util/createServer';
 import sharedOptions from './sharedOptions';
@@ -44,14 +45,14 @@ const mockCommand: CommandModule = {
   handler: async parsedArgs => {
     parsedArgs.jsonSchemaFakerFillProperties = parsedArgs['json-schema-faker-fillProperties'];
 
-    const { multiprocess, dynamic, explicit, port, host, cors, document, errors, verboseLevel, ignoreExamples, jsonSchemaFakerFillProperties } =
+    const { multiprocess, dynamic, explicit: explicitRelative, port, host, cors, document, errors, verboseLevel, ignoreExamples, jsonSchemaFakerFillProperties } =
       parsedArgs as unknown as CreateMockServerOptions;
 
     const createPrism = multiprocess ? createMultiProcessPrism : createSingleProcessPrism;
     const options = {
       cors,
       dynamic,
-      explicit,
+      explicit: resolve(explicitRelative),
       port,
       host,
       document,
