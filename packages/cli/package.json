@@ -1,6 +1,6 @@
 {
   "name": "@stoplight/prism-cli",
-  "version": "5.5.4",
+  "version": "5.5.5",
   "author": "Stoplight <support@stoplight.io>",
   "bin": {
     "prism": "./dist/index.js"
